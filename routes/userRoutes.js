@@ -1,5 +1,6 @@
 import express from "express"
-import { registerUser, loginUser } from "../controllers/userControllers.js"
+import { registerUser, loginUser, changePassword } from "../controllers/userControllers.js"
+import protect from "../middleware/authMiddleware.js";
 
 const app = express()
 app.use(express.json())
@@ -9,6 +10,6 @@ const router = express.Router()
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-
+router.put("/change-password", protect, changePassword);
 
 export default router
