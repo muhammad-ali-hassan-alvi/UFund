@@ -1,10 +1,5 @@
 import Product from "../models/productModel.js";
-import cloudinary from "../config/cloudinary.js";
 
-// Upload helper
-const uploadToCloudinary = async (file, folder) => {
-  return await cloudinary.uploader.upload(file.path, { folder });
-};
 
 export const createProduct = async (req, res) => {
   try {
@@ -30,15 +25,10 @@ export const createProduct = async (req, res) => {
       maturityDate,
     } = req.body;
 
-    const document = req.files?.document?.[0];
-    const report = req.files?.report?.[0];
-    const productImage = req.files?.productImage?.[0];
+    const documentUrl = req.files?.document?.[0]?.path || null;
+    const reportUrl = req.files?.report?.[0]?.path || null;
+    const productImageUrl = req.files?.productImage?.[0]?.path || null;
 
-    const [documentRes, reportRes, imageRes] = await Promise.all([
-      document ? uploadToCloudinary(document, "documents") : null,
-      report ? uploadToCloudinary(report, "reports") : null,
-      productImage ? uploadToCloudinary(productImage, "productImages") : null,
-    ]);
 
     const newProduct = new Product({
       productName,
@@ -60,16 +50,49 @@ export const createProduct = async (req, res) => {
       investmentStartDate,
       maturityDays,
       maturityDate,
-      documentUrl: documentRes?.secure_url || null,
-      reportUrl: reportRes?.secure_url || null,
-      productImageUrl: imageRes?.secure_url || null,
+      documentUrl, // Use direct URL
+      reportUrl, // Use direct URL
+      productImageUrl,
     });
 
     await newProduct.save();
     res.status(201).json({ success: true, product: newProduct });
   } catch (error) {
-    console.error(error);
+    console.error("Error in createProduct:", error);
     res.status(500).json({ success: false, error: "Failed to create product" });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
+    }
+
+    const updates = { ...req.body };
+
+    if (req.files?.document?.[0]) {
+      updates.documentUrl = req.files.document[0].path; // Use direct URL
+    }
+    if (req.files?.report?.[0]) {
+      updates.reportUrl = req.files.report[0].path; // Use direct URL
+    }
+    if (req.files?.productImage?.[0]) {
+      updates.productImageUrl = req.files.productImage[0].path;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    );
+    res.status(200).json({ success: true, product: updatedProduct });
+  } catch (error) {
+    console.error("Error in updateProduct:", error);
+    res.status(500).json({ success: false, error: "Failed to update product" });
   }
 };
 
@@ -98,43 +121,6 @@ export const getProductById = async (req, res) => {
   }
 };
 
-export const updateProduct = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product)
-      return res
-        .status(404)
-        .json({ success: false, message: "Product not found" });
-
-    const updates = req.body;
-    const document = req.files?.document?.[0];
-    const report = req.files?.report?.[0];
-    const productImage = req.files?.productImage?.[0];
-
-    if (document) {
-      const docRes = await uploadToCloudinary(document, "documents");
-      updates.documentUrl = docRes.secure_url;
-    }
-
-    if (report) {
-      const repRes = await uploadToCloudinary(report, "reports");
-      updates.reportUrl = repRes.secure_url;
-    }
-
-    if (productImage) {
-      const imgRes = await uploadToCloudinary(productImage, "productImages");
-      updates.productImageUrl = imgRes.secure_url;
-    }
-
-    const updated = await Product.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-    });
-    res.status(200).json({ success: true, product: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, error: "Failed to update product" });
-  }
-};
-
 export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -149,7 +135,7 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.status(200).json({ message: "Product deleted", product });
+    res.status(200).json({ message: "Product soft deleted", product });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
