@@ -18,8 +18,7 @@ const storage = new CloudinaryStorage({
     switch (file.fieldname) {
       case 'document':
         folderName = 'documents';
-        resourceType = 'raw'; // Documents are raw files
-        // For raw files, include the extension in the public_id
+        resourceType = 'raw'; 
         finalPublicId = `${originalFileNameWithoutExt}-${timestamp}${originalFileExt}`;
         break;
       case 'report':
